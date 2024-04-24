@@ -50,24 +50,28 @@ def induce_grammar(corpus, grammar=None):
             elif char == '(': # reach the next left parenthesis, save what came before
                 if w not in ['', ' ']:
                     w = w.strip()
-                    split = w.split(' ') 
-                    if len(w.split(' ')) == 1: # if w has no space, it is a non-terminal
+                    split = [c for c in w.split(' ') if c != ''] 
+                    if len(split) == 1: # if w has no space, it is a non-terminal
                         current.append(w)
-                    else: # if there is a space in w, it is a lexical rule and should be saved separately
+                    elif len(split) == 2: # if there is a space in w, it is a lexical rule and should be saved separately
                         current.append(split[0])
                         current.append(split[1])
+                    else:
+                        raise Exception("{} is not a valid string in PTB format!".format(l))
                     w = ''
                 stack.append(current) # add new rule to the stack -> go one level lower
                 current = []
             elif char == ')': # reach right parenthesis, save what came before
                 if w not in ['', ' ']:
                     w = w.strip()
-                    split = w.split(' ')
-                    if len(w.split(' ')) == 1:
+                    split = [c for c in w.split(' ') if c != '']
+                    if len(split) == 1:
                         current.append(w)
-                    else:
+                    elif len(split) == 2:
                         current.append(split[0])
                         current.append(split[1])
+                    else:
+                        raise Exception("{} is not a valid string in PTB format!".format(l))
                     w = ''
                 last = stack.pop() # go one level up
                 last.append(current)
@@ -103,7 +107,7 @@ def induce_grammar(corpus, grammar=None):
                 lex.write(' '.join([r.n, r.t, float_to_str(w)])+'\n')
     else:
         for r, w in lexicon:
-            print(' '.join([r.n, r.t, str(w)]))
+            print(' '.join([r.n, r.t, float_to_str(w)]))
     
     # Output: grammar words
     words = set(r.t for r,_ in lexicon)
