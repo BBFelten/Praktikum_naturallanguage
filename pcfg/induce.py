@@ -1,49 +1,65 @@
 from .structs import *
 
 def float_to_str(flt):
+    """Function to transform a float to a string
+    If the float is an integer, it is saved without extra decimals (1. -> 1)
+    """
     if int(flt) == flt:
         return str(int(flt))
     return str(flt)
 
 def get_rules(lst, grammar):
-    n = lst[0]
+    """Function to extract rules from a given nested list derived from PTB-format
+    Parameters:
+        lst: Nested list of strings derived from PTB string
+        grammar: instance of class Grammar() which will save the rules
+    Returns:
+        Grammar with rules from lst added
+    """
+    n = lst[0] # non-terminal
     ts = []
     for elem in lst[1:]:
-        if isinstance(elem, str):
+        if isinstance(elem, str): # terminal
             ts = elem
         else:
-            ts.append(elem[0])
-            grammar = get_rules(elem, grammar)
+            ts.append(elem[0]) # first non-terminal, one level below
+            grammar = get_rules(elem, grammar) # recursively get rules from nested list, one level below
     
     grammar.insert_rule(Rule(n, ts))
 
     return grammar
 
 def induce_grammar(corpus, grammar=None):
-    grammar_obj = Grammar()
+    """Exercise 1
+    Derive rules and non-terminals from corpus in PTB-format and return lexical and non-lexical rules and terminals
+    Parameters:
+        corpus: String containing one or more trees in PTB-format separated by newline
+        grammar: String (optional) prefix for outputs
+    """
+    grammar_obj = Grammar() # create instance of class Grammar() to save rules
     
     for line in corpus:
         l = line.rstrip()
-        stack = []
-        current = []
-        w = ''
+        stack = [] # save the previous levels
+        current = [] # save rules at current level
+        w = '' # save characters which are not separated by parentheses as a single string
 
         for char in l:
             if char not in [')', '(']:
-                w += char
-            elif char == '(':
+                w += char # add to current string
+            elif char == '(': # reach the next left parenthesis, save what came before
                 if w not in ['', ' ']:
                     w = w.strip()
-                    split = w.split(' ')
-                    if len(w.split(' ')) == 1:
+                    split = w.split(' ') 
+                    if len(w.split(' ')) == 1: # if w has no space, it is a non-terminal
                         current.append(w)
-                    else:
+                    else: # if there is a space in w, it is a lexical rule and should be saved separately
                         current.append(split[0])
                         current.append(split[1])
                     w = ''
-                stack.append(current)
+                stack.append(current) # add new rule to the stack -> go one level lower
                 current = []
-            elif char == ')':
+            elif char == ')': # reach right parenthesis, save what came before
                 if w not in ['', ' ']:
                     w = w.strip()
                     split = w.split(' ')
@@ -53,11 +69,11 @@ def induce_grammar(corpus, grammar=None):
                         current.append(split[0])
                         current.append(split[1])
                     w = ''
-                last = stack.pop()
+                last = stack.pop() # go one level up
                 last.append(current)
                 current = last
         
-        result = current[0]
+        result = current[0] # due to the given format, there is one level too much
         # print(result)
         
         grammar_obj = get_rules(result, grammar_obj)

@@ -21,10 +21,10 @@ class Grammar:
             self.rules = {Rule(n, t), w}
         else:
             self.rules = {}
-        self.nonterminals = None
         self.isnormalized = False
     
     def insert_rule(self, rule):
+        # add rule to ruleset if it is not there, otherwise increase count
         for r, w in self.rules.items():
             if rule.n == r.n and rule.t == r.t:
                 self.rules[r] += 1
@@ -32,15 +32,10 @@ class Grammar:
 
         self.rules[rule] = 1
         return 0
-    
-    def get_nonterminals(self):
-        if not self.nonterminals:
-            nonterminals = set([r.n for r, _ in self.rules.items()])
-            self.nonterminals = nonterminals
-        return self.nonterminals
 
     def normalize(self):
-        if not self.isnormalized:
+        if not self.isnormalized: # will lead to errors if applied several times
+            # First, get count of non-terminals on left side of rules
             nonterminals_counts = {}
             for r, w in self.rules.items():
                 if r.n not in nonterminals_counts.keys():
@@ -49,8 +44,8 @@ class Grammar:
                     nonterminals_counts[r.n] += w
             
             for r, w in self.rules.items():
-                self.rules[r] = w/nonterminals_counts[r.n]
+                self.rules[r] = w/nonterminals_counts[r.n] # divide count of each rule by total count of non-terminal on left side
             
-            self.normalized = True
+            self.normalized = True # calling method again should have no effect
         
         return self
