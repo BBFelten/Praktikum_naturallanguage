@@ -48,12 +48,12 @@ def induce_grammar(corpus, grammar=None):
             if char not in [')', '(']:
                 w += char # add to current string
             elif char == '(': # reach the next left parenthesis, save what came before
-                if w not in ['', ' ']:
-                    w = w.strip()
+                w = w.strip()
+                if w != '': 
                     split = [c for c in w.split(' ') if c != ''] 
                     if len(split) == 1: # if w has no space, it is a non-terminal
                         current.append(w)
-                    elif len(split) == 2: # if there is a space in w, it is a lexical rule and should be saved separately
+                    elif len(split) == 2: # if there is one space in w, it is a lexical rule and should be saved separately
                         current.append(split[0])
                         current.append(split[1])
                     else:
@@ -62,8 +62,8 @@ def induce_grammar(corpus, grammar=None):
                 stack.append(current) # add new rule to the stack -> go one level lower
                 current = []
             elif char == ')': # reach right parenthesis, save what came before
-                if w not in ['', ' ']:
-                    w = w.strip()
+                w = w.strip()
+                if w != '':
                     split = [c for c in w.split(' ') if c != '']
                     if len(split) == 1:
                         current.append(w)
