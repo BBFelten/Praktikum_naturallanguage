@@ -1,0 +1,8 @@
+S -> NP VP 1.0
+VP -> V NP 0.5
+VP -> V VP1 0.5
+VP1 -> NP PP 1.0
+PP -> P NP 1.0
+NP -> Det N 0.8
+NP -> NP1 PP 0.2
+NP1 -> Det N 1.0

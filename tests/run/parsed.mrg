@@ -1,0 +1,5 @@
+NOPARSE a b
+(('ROOT', 'X', 'Y'), ('X', 'a'), ('Y', 'b'))
+NOPARSE b a
+NOPARSE a a
+NOPARSE b

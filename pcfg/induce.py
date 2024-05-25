@@ -76,9 +76,8 @@ def induce_grammar(corpus, grammar=None):
                 last = stack.pop() # go one level up
                 last.append(current)
                 current = last
-        
+
         result = current[0] # due to the given format, there is one level too much
-        # print(result)
         
         grammar_obj = get_rules(result, grammar_obj)
     
