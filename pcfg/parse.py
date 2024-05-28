@@ -34,12 +34,11 @@ def unary_closure(rules, queue):
     return result, backtraces
 
 
-def cyk_parse(sentence, id_dict, lex_left, lex_rules, N, R, initial="ROOT"):
+def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT"):
     """Function that implements the cyk-parse algorithm
     Parameters:
         sentence: str
         id_dict: dictionary that maps words to indices
-        lex_left: list of non-terminals that are on the left side of lexicon rules
         lex_rules: dictionary of lexicon rules of the form (non-terminal, word index) -> weight
         N: set of non-terminals
         R: dictionary of grammar rules in the form (left side of rule, (right side of rule)) -> weight
@@ -59,11 +58,23 @@ def cyk_parse(sentence, id_dict, lex_left, lex_rules, N, R, initial="ROOT"):
     # iterate over indices and get lexicon rules
     for i in range(1,n+1):
         word_int = id_dict[words[i-1]]
-        A = lex_left[word_int]
-        w = lex_rules[(A, word_int)]
-        tbl[(i-1, i, A)] = w
-        backtraces[(i-1, i, A)] = [word_int]
-        unary_weights, unary_backtraces = unary_closure({**R, **lex_rules}, [(-w, A)])
+        queue = []
+        for (A, wi) in lex_rules:
+            if wi == word_int:
+                w = lex_rules[(A, wi)]
+                if (i-1, i, A) in tbl:
+                    if w > tbl[(i-1, i, A)]:
+                        tbl[(i-1, i, A)] = w
+                        backtraces[(i-1, i, A)] = [word_int]
+                        if (A, tbl[(i,j,A)]) in queue:
+                            queue.remove((A, tbl[(i,j,A)]))
+                        heapq.heappush(queue, (-w, A))
+                else:
+                    tbl[(i-1, i, A)] = w
+                    backtraces[(i-1, i, A)] = [word_int]
+                    heapq.heappush(queue, (-w, A))
+
+        unary_weights, unary_backtraces = unary_closure({**R, **lex_rules}, queue)
         for nonterminal, weight in unary_weights.items():
             if weight > 0:
                 tbl[(i-1, i, nonterminal)] = weight
@@ -144,7 +155,6 @@ def get_lexicon(lexicon):
     Parameters:
         lexicon: path to lexicon file
     returns:
-        lex_left: list of non-terminals that point directly to words
         lex_rules: dictionary of lexicon rules of the form (non-terminal, word index) -> weight
         N: Set of non-terminals
         id_dict: dictionary that maps words to indices
@@ -152,7 +162,6 @@ def get_lexicon(lexicon):
     """
     words = []
     lex_rules = {}
-    lex_left = []
     id_dict = {}
     word_dict = {}
     N = set()
@@ -160,13 +169,17 @@ def get_lexicon(lexicon):
         for i,l in enumerate(lex_file):
             l_splt = [elem.strip() for elem in l.split(' ')]
             words.append(l_splt[1])
-            id_dict[l_splt[1]] = i
-            word_dict[i] = l_splt[1]
-            lex_rules[(l_splt[0], (i))] = float(l_splt[2])
-            lex_left.append(l_splt[0])
+            if l_splt[1] not in id_dict:
+                id = i
+            else:
+                id = id_dict[l_splt[1]]
+            
+            id_dict[l_splt[1]] = id
+            word_dict[id] = l_splt[1]
+            lex_rules[(l_splt[0], (id))] = float(l_splt[2])
             N.add(l_splt[0])
     
-    return lex_left, lex_rules, N, id_dict, word_dict
+    return lex_rules, N, id_dict, word_dict
 
 
 def get_rules(rules, N):
@@ -201,12 +214,12 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT"):
         sentences: list of strings
         initial(str): root symbol of the parse tree
     """
-    lex_left, lex_rules, N, id_dict, word_dict = get_lexicon(lexicon)
+    lex_rules, N, id_dict, word_dict = get_lexicon(lexicon)
     rls, N = get_rules(rules, N)
     trees = []
     for sentence in sentences:
         sentence = sentence.strip()
-        result, root_id, backtraces = cyk_parse(sentence, id_dict, lex_left, lex_rules, N, rls, initial)
+        result, root_id, backtraces = cyk_parse(sentence, id_dict, lex_rules, N, rls, initial)
         
         if result:
             root_bt = backtraces[tuple(root_id + [initial])]
@@ -229,5 +242,8 @@ if __name__ == "__main__":
     # sentence = "The new real estate unit would have a separate capital structure to comply with the law ."
     # run_cyk_parse("./material/large/grammar.rules", "./material/large/grammar.lexicon", [sentence], initial="ROOT")
 
-    sentences = ["a b", "a a b b b", "b a", "a a", "b" ]
-    run_cyk_parse("./tests/data/test.rules", "./tests/data/test.lexicon", sentences)
+    # sentences = ["a b", "a a b b b", "b a", "a a", "b" ]
+    # run_cyk_parse("./tests/data/test.rules", "./tests/data/test.lexicon", sentences)
+
+    sentence = "a a b b b"
+    run_cyk_parse("tests/data/parsing-testcli.rules", "tests/data/parsing-testcli.lexicon", [sentence], "WURZEL")
