@@ -206,6 +206,17 @@ def get_rules(rules, N):
     return rls, N
 
 
+def nested_tuple_to_str(t):
+    """Helper function to turn a nested tuple to string without quotes and commas
+    Parameters:
+        t: tuple
+    """
+    if isinstance(t, tuple):
+        return '(' + ' '.join(nested_tuple_to_str(item) for item in t) + ')'
+    else:
+        return str(t)
+
+
 def run_cyk_parse(rules, lexicon, sentences, initial="ROOT"):
     """Run the cyk parse algorithm
     Parameters:
@@ -231,13 +242,12 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT"):
             trees.append('(NOPARSE {})'.format(sentence))
     
     for t in trees:
-        print(str(t).replace("'", "").replace(",", ""))
-    # return trees
+        print(nested_tuple_to_str(t))
 
 
 if __name__ == "__main__":
-    # sentence = "A Lorillard spokewoman said , `` This is an old story ."
-    # run_cyk_parse("./material/small/grammar.rules", "./material/small/grammar.lexicon", [sentence], initial="ROOT")
+    sentence = "Pierre Vinken , 61 years old , will join the board as a nonexecutive director Nov. 29 ."
+    run_cyk_parse("./material/small/grammar.rules", "./material/small/grammar.lexicon", [sentence], initial="ROOT")
 
     # sentence = "The new real estate unit would have a separate capital structure to comply with the law ."
     # run_cyk_parse("./material/large/grammar.rules", "./material/large/grammar.lexicon", [sentence], initial="ROOT")
@@ -245,5 +255,5 @@ if __name__ == "__main__":
     # sentences = ["a b", "a a b b b", "b a", "a a", "b" ]
     # run_cyk_parse("./tests/data/test.rules", "./tests/data/test.lexicon", sentences)
 
-    sentence = "a a b b b"
-    run_cyk_parse("tests/data/parsing-testcli.rules", "tests/data/parsing-testcli.lexicon", [sentence], "WURZEL")
+    # sentence = "a a b b b"
+    # run_cyk_parse("tests/data/parsing-testcli.rules", "tests/data/parsing-testcli.lexicon", [sentence], "WURZEL")
