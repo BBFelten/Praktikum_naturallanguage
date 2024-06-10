@@ -8,28 +8,30 @@ def unary_closure(rules, queue):
     """
     weights = {}
     result = {}
-    for c in queue:
-        weights[c[0]] = 0.
-
     backtraces = {}
-    while len(queue) > 0:
-        current = heapq.heappop(queue)
-        current_weight = -current[0]
-        current_nt = current[1]
-        if not current_nt in weights:
-            weights[current_nt] = 0
-        if weights[current_nt] <= current_weight:
-            weights[current_nt] = current_weight
+    
+    if queue:
+        for c in queue:
+            weights[c[0]] = 0.
 
-            for left, right in rules:
-                right = [right] if isinstance(right, int) else right
-                if len(right) == 1 and current_nt == right[0]:
-                    w = rules[(left, right)] * current_weight
-                    if left not in weights or w > weights[left]:
-                        heapq.heappush(queue, (-w, left))
-                        weights[left] = w
-                        result[left] = w
-                        backtraces[left] = right[0]
+        while len(queue) > 0:
+            current = heapq.heappop(queue)
+            current_weight = -current[0]
+            current_nt = current[1]
+            if not current_nt in weights:
+                weights[current_nt] = 0
+            if weights[current_nt] <= current_weight:
+                weights[current_nt] = current_weight
+
+                for left, right in rules:
+                    right = [right] if isinstance(right, int) else right
+                    if len(right) == 1 and current_nt == right[0]:
+                        w = rules[(left, right)] * current_weight
+                        if left not in weights or w > weights[left]:
+                            heapq.heappush(queue, (-w, left))
+                            weights[left] = w
+                            result[left] = w
+                            backtraces[left] = right[0]
 
     return result, backtraces
 
@@ -58,22 +60,21 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT"):
     # iterate over indices and get lexicon rules
     for i in range(1,n+1):
         word_int = id_dict[words[i-1]]
-        queue = []
+        nonterminals = set()
         for (A, wi) in lex_rules:
             if wi == word_int:
                 w = lex_rules[(A, wi)]
                 if (i-1, i, A) in tbl:
                     if w > tbl[(i-1, i, A)]:
                         tbl[(i-1, i, A)] = w
-                        backtraces[(i-1, i, A)] = [word_int]
-                        if (A, tbl[(i,j,A)]) in queue:
-                            queue.remove((A, tbl[(i,j,A)]))
-                        heapq.heappush(queue, (-w, A))
+                        backtraces[(i-1, i, A)] = [word_int]                        
                 else:
                     tbl[(i-1, i, A)] = w
                     backtraces[(i-1, i, A)] = [word_int]
-                    heapq.heappush(queue, (-w, A))
+                    nonterminals.add(A)
 
+        queue = [(-tbl[(i-1, i, a)], a) for a in nonterminals]
+        heapq.heapify(queue)
         unary_weights, unary_backtraces = unary_closure({**R, **lex_rules}, queue)
         for nonterminal, weight in unary_weights.items():
             if weight > 0:
@@ -82,7 +83,7 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT"):
     
     # width of span
     for r in range(2,n+1):
-        queue = []
+        queue_dict = {}
         # left limit
         for i in range(n+1-r):
             # right limit
@@ -96,24 +97,18 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT"):
                             B, C = rule[1]
                             if (i,m,B) in tbl and (m,j,C) in tbl:
                                 w = R[rule] * tbl[(i,m,B)] * tbl[(m,j,C)]
-                                if (i,j, A) in tbl:
-                                    if w > tbl[(i,j,A)]: 
-                                        if (A, tbl[(i,j,A)]) in queue:
-                                            queue.remove((A, tbl[(i,j,A)]))
-                                        heapq.heappush(queue, (-w, A))
-                                        tbl[(i,j,A)] = w
-                                        backtraces[(i,j,A)] = [B, C, m]
-
-                                else:
+                                if w > tbl.get((i,j,A), 0): 
+                                    queue_dict[A] = w
                                     tbl[(i,j,A)] = w
                                     backtraces[(i,j,A)] = [B, C, m]
-                                    heapq.heappush(queue, (-w, A))
                     
                                 if A == initial and i == 0 and j == n:
                                     root_id = [i,j]
                                     found = True
                 
                 # add unary rules
+                queue = [(-v, k) for k, v in queue_dict.items()]
+                heapq.heapify(queue)
                 unary_weights, unary_backtraces = unary_closure(R, queue)
                 for nonterminal, weight in unary_weights.items():
                     if weight > 0:
@@ -227,7 +222,7 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT"):
     """
     lex_rules, N, id_dict, word_dict = get_lexicon(lexicon)
     rls, N = get_rules(rules, N)
-    trees = []
+
     for sentence in sentences:
         sentence = sentence.strip()
         result, root_id, backtraces = cyk_parse(sentence, id_dict, lex_rules, N, rls, initial)
@@ -236,13 +231,10 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT"):
             root_bt = backtraces[tuple(root_id + [initial])]
             root = tuple(root_id + [initial] + root_bt)
             tree = best_tree(backtraces, root, word_dict)
-            trees.append(tree)
+            print(nested_tuple_to_str(tree))
         
         else:
-            trees.append('(NOPARSE {})'.format(sentence))
-    
-    for t in trees:
-        print(nested_tuple_to_str(t))
+            print('(NOPARSE {})'.format(sentence))
 
 
 if __name__ == "__main__":
