@@ -3,6 +3,7 @@ import argparse
 
 from pcfg.induce import induce_grammar
 from pcfg.parse import run_cyk_parse
+from pcfg.debinarise import run_debinarise
 
 
 def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None, initial_nonterminal=None, unking=None,
@@ -26,7 +27,7 @@ def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None,
         sys.exit(22)
     
     elif command == "debinarise":
-        sys.exit(22)
+        return(run_debinarise(input))
     
     elif command == "unk":
         sys.exit(22)

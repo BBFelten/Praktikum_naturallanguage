@@ -1,5 +1,7 @@
 import heapq
 
+from .helpers.helpers import nested_tuple_to_str
+
 def unary_closure(rules, queue):
     """Function that finds unary rules for each cell
     Parameters:
@@ -199,17 +201,6 @@ def get_rules(rules, N):
             N.add(left)
     
     return rls, N
-
-
-def nested_tuple_to_str(t):
-    """Helper function to turn a nested tuple to string without quotes and commas
-    Parameters:
-        t: tuple
-    """
-    if isinstance(t, tuple):
-        return '(' + ' '.join(nested_tuple_to_str(item) for item in t) + ')'
-    else:
-        return str(t)
 
 
 def run_cyk_parse(rules, lexicon, sentences, initial="ROOT"):
