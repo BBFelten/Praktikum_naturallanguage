@@ -1,8 +1,9 @@
-def tree_from_str(input):
+def tree_from_str(input, get_terminal_list=False):
     l = input.rstrip()
     stack = [] # save the previous levels
     current = [] # save rules at current level
     w = '' # save characters which are not separated by parentheses as a single string
+    terminal_list = []
 
     for char in l:
         if char not in [')', '(']:
@@ -16,6 +17,8 @@ def tree_from_str(input):
                 elif len(split) == 2: # if there is one space in w, it is a lexical rule and should be saved separately
                     current.append(split[0])
                     current.append(split[1])
+                    if get_terminal_list:
+                        terminal_list.append(split[1])
                 else:
                     raise Exception("{} is not a valid string in PTB format!".format(l))
                 w = ''
@@ -27,9 +30,10 @@ def tree_from_str(input):
                 split = [c for c in w.split(' ') if c != '']
                 if len(split) == 1:
                     current.append(w)
-                elif len(split) == 2:
+                elif len(split) == 2: # if there is one space in w, it is a lexical rule and should be saved separately
                     current.append(split[0])
                     current.append(split[1])
+                    terminal_list.append(split[1])
                 else:
                     raise Exception("{} is not a valid string in PTB format!".format(l))
                 w = ''
@@ -38,6 +42,9 @@ def tree_from_str(input):
             current = last
 
     result = current[0] # due to the given format, there is one level too much
+
+    if get_terminal_list:
+        return result, terminal_list
 
     return result
 

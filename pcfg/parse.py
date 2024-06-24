@@ -38,7 +38,7 @@ def unary_closure(rules, queue):
     return result, backtraces
 
 
-def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT"):
+def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, unk_id=None):
     """Function that implements the cyk-parse algorithm
     Parameters:
         sentence: str
@@ -52,8 +52,22 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT"):
         root_id: tuple of indices that contain the root
         backtraces: dictionary containing backtraces of the form (i, j, non-terminal) -> [right side of rule, m]
     """
-    words = [w.strip() for w in sentence.split(' ')]
-    words = [w for w in words if w != '']
+    words_orig = [w.strip() for w in sentence.split(' ')]
+    words_orig = [w for w in words_orig if w != '']
+
+    # basic unking
+    words_unk = []
+    if unking:
+        words = []
+        for word in words_orig:
+            if word in id_dict:
+                words.append(word)
+            else:
+                words_unk.append(word)
+                words.append("UNK")
+    else:
+        words = words_orig
+
     n = len(words)
     found = False
 
@@ -61,7 +75,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT"):
     backtraces = {}
     # iterate over indices and get lexicon rules
     for i in range(1,n+1):
-        word_int = id_dict[words[i-1]]
+        word_int = id_dict.get(words[i-1], unk_id)
+        if word_int == unk_id and not unking:
+            return False, (), {}, []
         nonterminals = set()
         for (A, wi) in lex_rules:
             if wi == word_int:
@@ -122,9 +138,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT"):
                         found = True
     
     if found:
-        return tbl, root_id, backtraces
+        return tbl, root_id, backtraces, words_unk
     
-    return False, (), {}
+    return False, (), {}, []
 
 
 def best_tree(backtraces, root, word_dict):
@@ -147,7 +163,7 @@ def best_tree(backtraces, root, word_dict):
         return (A, best_tree(backtraces, left, word_dict), best_tree(backtraces, right, word_dict))
 
 
-def get_lexicon(lexicon):
+def get_lexicon(lexicon, unking=False):
     """Get non-terminal rules from lexicon file
     Parameters:
         lexicon: path to lexicon file
@@ -176,7 +192,14 @@ def get_lexicon(lexicon):
             lex_rules[(l_splt[0], (id))] = float(l_splt[2])
             N.add(l_splt[0])
     
-    return lex_rules, N, id_dict, word_dict
+    if unking:
+        unk_id = i
+        id_dict["UNK"] = unk_id
+        word_dict[i] = "UNK"
+    else:
+        unk_id = None
+    
+    return lex_rules, N, id_dict, word_dict, unk_id
 
 
 def get_rules(rules, N):
@@ -203,7 +226,7 @@ def get_rules(rules, N):
     return rls, N
 
 
-def run_cyk_parse(rules, lexicon, sentences, initial="ROOT"):
+def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False):
     """Run the cyk parse algorithm
     Parameters:
         rules: path to file containing grammar rules
@@ -211,26 +234,37 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT"):
         sentences: list of strings
         initial(str): root symbol of the parse tree
     """
-    lex_rules, N, id_dict, word_dict = get_lexicon(lexicon)
+    lex_rules, N, id_dict, word_dict, unk_id = get_lexicon(lexicon, unking)
     rls, N = get_rules(rules, N)
 
     for sentence in sentences:
         sentence = sentence.strip()
-        result, root_id, backtraces = cyk_parse(sentence, id_dict, lex_rules, N, rls, initial)
+        result, root_id, backtraces, words_unk = cyk_parse(sentence, id_dict, lex_rules, N, rls, initial, unking, unk_id)
         
         if result:
             root_bt = backtraces[tuple(root_id + [initial])]
             root = tuple(root_id + [initial] + root_bt)
-            tree = best_tree(backtraces, root, word_dict)
-            print(nested_tuple_to_str(tree))
+            tree = nested_tuple_to_str(best_tree(backtraces, root, word_dict))
+            # replace 'UNK' with original words
+            if unking:
+                tree_spl = tree.split("UNK")
+                assert len(tree_spl) == len(words_unk) + 1
+                tree = ""
+                for elem in tree_spl:
+                    if len(words_unk) > 0:
+                        tree += elem + words_unk.pop(0)
+                    else:
+                        tree += elem
+            
+            print(tree)
         
         else:
             print('(NOPARSE {})'.format(sentence))
 
 
 if __name__ == "__main__":
-    sentence = "Pierre Vinken , 61 years old , will join the board as a nonexecutive director Nov. 29 ."
-    run_cyk_parse("./material/small/grammar.rules", "./material/small/grammar.lexicon", [sentence], initial="ROOT")
+    # sentence = "Pierre Vinken , 61 years old , will join the board as a nonexecutive director Nov. 29 ."
+    # run_cyk_parse("./material/small/grammar.rules", "./material/small/grammar.lexicon", [sentence], initial="ROOT")
 
     # sentence = "The new real estate unit would have a separate capital structure to comply with the law ."
     # run_cyk_parse("./material/large/grammar.rules", "./material/large/grammar.lexicon", [sentence], initial="ROOT")
@@ -240,3 +274,9 @@ if __name__ == "__main__":
 
     # sentence = "a a b b b"
     # run_cyk_parse("tests/data/parsing-testcli.rules", "tests/data/parsing-testcli.lexicon", [sentence], "WURZEL")
+
+    sentences = ["a b", "b"]
+    rules = "tests/data/unked.rules"
+    lexicon = "tests/data/unked.lexicon"
+
+    run_cyk_parse(rules, lexicon, sentences, unking=False)
