@@ -1,6 +1,6 @@
 import heapq
 
-from .helpers.helpers import nested_tuple_to_str
+from .helpers.helpers import nested_tuple_to_str, tree_from_str
 
 def unary_closure(rules, queue):
     """Function that finds unary rules for each cell
@@ -47,6 +47,8 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, 
         N: set of non-terminals
         R: dictionary of grammar rules in the form (left side of rule, (right side of rule)) -> weight
         initial: str that represents root of tree
+        unking: bool, apply basic unking
+        unk_id: int or None, ID of 'UNK' in the dictionaries
     returns:
         tbl: dictionary of the form (i, j, non-terminal) -> weight
         root_id: tuple of indices that contain the root
@@ -167,6 +169,7 @@ def get_lexicon(lexicon, unking=False):
     """Get non-terminal rules from lexicon file
     Parameters:
         lexicon: path to lexicon file
+        unking: bool, apply basic unking
     returns:
         lex_rules: dictionary of lexicon rules of the form (non-terminal, word index) -> weight
         N: Set of non-terminals
@@ -233,6 +236,7 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False):
         lexicon: path to file containing lexicon
         sentences: list of strings
         initial(str): root symbol of the parse tree
+        unking: bool, apply basic unking
     """
     lex_rules, N, id_dict, word_dict, unk_id = get_lexicon(lexicon, unking)
     rls, N = get_rules(rules, N)
@@ -244,19 +248,13 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False):
         if result:
             root_bt = backtraces[tuple(root_id + [initial])]
             root = tuple(root_id + [initial] + root_bt)
-            tree = nested_tuple_to_str(best_tree(backtraces, root, word_dict))
+            tree_str = nested_tuple_to_str(best_tree(backtraces, root, word_dict))
             # replace 'UNK' with original words
             if unking:
-                tree_spl = tree.split("UNK")
-                assert len(tree_spl) == len(words_unk) + 1
-                tree = ""
-                for elem in tree_spl:
-                    if len(words_unk) > 0:
-                        tree += elem + words_unk.pop(0)
-                    else:
-                        tree += elem
+                tree = tree_from_str(tree_str, get_terminal_list=False, unking=True, unk_list=words_unk)
+                tree_str = nested_tuple_to_str(tree)
             
-            print(tree)
+            print(tree_str)
         
         else:
             print('(NOPARSE {})'.format(sentence))
@@ -279,4 +277,4 @@ if __name__ == "__main__":
     rules = "tests/data/unked.rules"
     lexicon = "tests/data/unked.lexicon"
 
-    run_cyk_parse(rules, lexicon, sentences, unking=False)
+    run_cyk_parse(rules, lexicon, sentences, unking=True)

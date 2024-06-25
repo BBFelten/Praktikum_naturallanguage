@@ -1,4 +1,4 @@
-def tree_from_str(input, get_terminal_list=False):
+def tree_from_str(input, get_terminal_list=False, unking=False, unk_list=[]):
     l = input.rstrip()
     stack = [] # save the previous levels
     current = [] # save rules at current level
@@ -16,9 +16,13 @@ def tree_from_str(input, get_terminal_list=False):
                     current.append(w)
                 elif len(split) == 2: # if there is one space in w, it is a lexical rule and should be saved separately
                     current.append(split[0])
-                    current.append(split[1])
+                    if unking and split[1] == "UNK":
+                        terminal = unk_list.pop(0)
+                    else:
+                        terminal = split[1]
+                    current.append(terminal)
                     if get_terminal_list:
-                        terminal_list.append(split[1])
+                        terminal_list.append(terminal)
                 else:
                     raise Exception("{} is not a valid string in PTB format!".format(l))
                 w = ''
@@ -32,8 +36,12 @@ def tree_from_str(input, get_terminal_list=False):
                     current.append(w)
                 elif len(split) == 2: # if there is one space in w, it is a lexical rule and should be saved separately
                     current.append(split[0])
-                    current.append(split[1])
-                    terminal_list.append(split[1])
+                    if unking and split[1] == "UNK":
+                        terminal = unk_list.pop(0)
+                    else:
+                        terminal = split[1]
+                    current.append(terminal)
+                    terminal_list.append(terminal)
                 else:
                     raise Exception("{} is not a valid string in PTB format!".format(l))
                 w = ''
