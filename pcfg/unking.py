@@ -1,4 +1,4 @@
-from .helpers.helpers import tree_from_str
+from .helpers.helpers import tree_from_str, nested_tuple_to_str
 
 def basic_unking(corpus, threshold):
     wordcounts = {}
@@ -14,10 +14,11 @@ def basic_unking(corpus, threshold):
 
     modified_corpus = ""
     for line in lines:
-        for word in to_be_replaced:
-            line = line.replace(word, "UNK").strip()
-        modified_corpus += line + "\n"
-        print(line)
+        tree = tree_from_str(line, get_terminal_list=False, unking=True, unk_list=set(to_be_replaced))
+        tree_str = nested_tuple_to_str(tree)
+
+        modified_corpus += tree_str + "\n"
+        print(tree_str)
     
     modified_corpus = modified_corpus.strip()
     return modified_corpus

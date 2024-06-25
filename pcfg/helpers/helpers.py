@@ -16,8 +16,13 @@ def tree_from_str(input, get_terminal_list=False, unking=False, unk_list=[]):
                     current.append(w)
                 elif len(split) == 2: # if there is one space in w, it is a lexical rule and should be saved separately
                     current.append(split[0])
-                    if unking and split[1] == "UNK":
-                        terminal = unk_list.pop(0)
+                    if unking:
+                        if split[1] == "UNK":
+                            terminal = unk_list.pop(0)
+                        elif split[1] in unk_list:
+                            terminal = "UNK"
+                        else:
+                            terminal = split[1]
                     else:
                         terminal = split[1]
                     current.append(terminal)
@@ -36,8 +41,13 @@ def tree_from_str(input, get_terminal_list=False, unking=False, unk_list=[]):
                     current.append(w)
                 elif len(split) == 2: # if there is one space in w, it is a lexical rule and should be saved separately
                     current.append(split[0])
-                    if unking and split[1] == "UNK":
-                        terminal = unk_list.pop(0)
+                    if unking:
+                        if split[1] == "UNK":
+                            terminal = unk_list.pop(0)
+                        elif split[1] in unk_list:
+                            terminal = "UNK"
+                        else:
+                            terminal = split[1]
                     else:
                         terminal = split[1]
                     current.append(terminal)
