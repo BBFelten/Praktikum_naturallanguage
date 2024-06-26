@@ -181,12 +181,14 @@ def get_lexicon(lexicon, unking=False):
     id_dict = {}
     word_dict = {}
     N = set()
+    i = 0
     with open(lexicon, 'r') as lex_file:
-        for i,l in enumerate(lex_file):
+        for l in lex_file:
             l_splt = [elem.strip() for elem in l.split(' ')]
             words.append(l_splt[1])
             if l_splt[1] not in id_dict:
                 id = i
+                i += 1
             else:
                 id = id_dict[l_splt[1]]
             
@@ -195,10 +197,10 @@ def get_lexicon(lexicon, unking=False):
             lex_rules[(l_splt[0], (id))] = float(l_splt[2])
             N.add(l_splt[0])
     
-    if unking:
-        unk_id = i
+    if unking and "UNK" not in id_dict:
+        unk_id = i+1
         id_dict["UNK"] = unk_id
-        word_dict[i] = "UNK"
+        word_dict[i+1] = "UNK"
     else:
         unk_id = None
     
@@ -273,8 +275,11 @@ if __name__ == "__main__":
     # sentence = "a a b b b"
     # run_cyk_parse("tests/data/parsing-testcli.rules", "tests/data/parsing-testcli.lexicon", [sentence], "WURZEL")
 
-    sentences = ["a b", "b"]
-    rules = "tests/data/unked.rules"
-    lexicon = "tests/data/unked.lexicon"
+    sentences = ["He is a brilliant deipnosophist ."]
+    rules = "temp/small.rules"
+    lexicon = "temp/small.lexicon"
+
+    # rules = "material/small/grammar.rules"
+    # lexicon = "material/small/grammar.lexicon"
 
     run_cyk_parse(rules, lexicon, sentences, unking=True)
