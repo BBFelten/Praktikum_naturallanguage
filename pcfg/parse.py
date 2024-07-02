@@ -26,20 +26,30 @@ def unary_closure(rules, queue):
             if weights[current_nt] <= current_weight:
                 weights[current_nt] = current_weight
 
-                for left, right in rules:
-                    right = [right] if isinstance(right, int) else right
-                    if len(right) == 1 and current_nt == right[0]:
-                        w = rules[(left, right)] * current_weight
-                        if left not in weights or w > weights[left]:
-                            heapq.heappush(queue, (-w, left))
-                            weights[left] = w
-                            result[left] = w
-                            backtraces[left] = right[0]
+                for left, rights in rules.items():
+                    for right in rights:
+                        right_rl = [right[0]] if isinstance(right[0], int) else right[0]
+                        if len(right_rl) == 1 and current_nt == right_rl[0]:
+                            w = right[1] * current_weight
+                            if left not in weights or w > weights[left]:
+                                heapq.heappush(queue, (-w, left))
+                                weights[left] = w
+                                result[left] = w
+                                backtraces[left] = right_rl[0]
 
     return result, backtraces
 
 
 def prune_threshold_beam(tbl, i, j, nonterminals, theta):
+    """Implement pruning with threshold beam
+    Parameters:
+        tbl: dictionary of the form (i, j, non-terminal) -> weight
+        i, j: current indices
+        nonterminals: list of nonterminals at current cell
+        theta: threshold for pruning
+    returns:
+        pruned dictionary of the form (i, j, non-terminal) -> weight
+    """
     m = max([tbl[(i,j,a)] for a in nonterminals])
     thresh = theta*m
     for A in nonterminals:
@@ -48,7 +58,7 @@ def prune_threshold_beam(tbl, i, j, nonterminals, theta):
     return tbl
 
 
-def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, unk_id=None, threshold_beam=0):
+def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unking=False, unk_id=None, threshold_beam=0):
     """Function that implements the cyk-parse algorithm
     Parameters:
         sentence: str
@@ -91,9 +101,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, 
         if word_int == unk_id and not unking:
             return False, (), {}, []
         nonterminals = set()
-        for (A, wi) in lex_rules:
-            if wi == word_int:
-                w = lex_rules[(A, wi)]
+        for A, lex in lex_rules.items():
+            A_lex = [elem for elem in lex if elem[0] == word_int]
+            for wi, w in A_lex:
                 if (i-1, i, A) in tbl:
                     if w > tbl[(i-1, i, A)]:
                         tbl[(i-1, i, A)] = w
@@ -105,7 +115,12 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, 
 
         queue = [(-tbl[(i-1, i, a)], a) for a in nonterminals]
         heapq.heapify(queue)
-        unary_weights, unary_backtraces = unary_closure({**R, **lex_rules}, queue)
+        combined_d = R.copy()
+        for k, v in lex_rules.items():
+            lst  = combined_d.get(k, [])
+            lst.extend(v)
+            combined_d[k] = lst
+        unary_weights, unary_backtraces = unary_closure(combined_d, queue)
         for nonterminal, weight in unary_weights.items():
             if weight > 0:
                 tbl[(i-1, i, nonterminal)] = weight
@@ -125,23 +140,19 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, 
             queue_dict = {}
             # split of span
             for m in range(i+1, j):
-                # add binary rules
-                for A in N:
-                    for rule in R:
-                        if len(rule[1]) == 2 and A == rule[0]:
-                            B, C = rule[1]
-                            # if (i,m,B) in tbl and (m,j,C) in tbl:
-                            if tbl.get((i,m,B), 0) > 0 and tbl.get((m,j,C), 0) > 0:
-                                nonterminals.add(A)
-                                w = R[rule] * tbl[(i,m,B)] * tbl[(m,j,C)]
-                                if w > tbl.get((i,j,A), 0): 
-                                    queue_dict[A] = w
-                                    tbl[(i,j,A)] = w
-                                    backtraces[(i,j,A)] = [B, C, m]
-                    
-                                if A == initial and i == 0 and j == n:
-                                    root_id = [i,j]
-                                    found = True
+                for (B,C), BC_lst in R_binary.items():
+                    for A, rule_w in BC_lst:
+                        if tbl.get((i,m,B), 0) > 0 and tbl.get((m,j,C), 0) > 0:
+                            nonterminals.add(A)
+                            w = rule_w * tbl[(i,m,B)] * tbl[(m,j,C)]
+                            if w > tbl.get((i,j,A), 0): 
+                                queue_dict[A] = w
+                                tbl[(i,j,A)] = w
+                                backtraces[(i,j,A)] = [B, C, m]
+                
+                            if A == initial and i == 0 and j == n:
+                                root_id = [i,j]
+                                found = True
                 
             # add unary rules
             queue = [(-v, k) for k, v in queue_dict.items()]
@@ -192,7 +203,7 @@ def get_lexicon(lexicon, unking=False):
         lexicon: path to lexicon file
         unking: bool, apply basic unking
     returns:
-        lex_rules: dictionary of lexicon rules of the form (non-terminal, word index) -> weight
+        lex_rules: dictionary of lexicon rules of the form non-terminal -> (word index, weight)
         N: Set of non-terminals
         id_dict: dictionary that maps words to indices
         word_dict: dictionary that maps indices to words
@@ -215,7 +226,9 @@ def get_lexicon(lexicon, unking=False):
             
             id_dict[l_splt[1]] = id
             word_dict[id] = l_splt[1]
-            lex_rules[(l_splt[0], (id))] = float(l_splt[2])
+            lex_rls_lst = lex_rules.get(l_splt[0], [])
+            lex_rls_lst.append((id, float(l_splt[2])))
+            lex_rules[l_splt[0]] = lex_rls_lst
             N.add(l_splt[0])
     
     if unking and "UNK" not in id_dict:
@@ -234,10 +247,12 @@ def get_rules(rules, N):
         rules: path to grammar file
         N: list of non-terminals
     returns:
-        rls: dictionary of (left side of rule, (right side of rule)) -> weight
+        rls: dictionary of left side of rule -> [(right side of rule, weight)]
+        rls_bi: dictionary of binary rules with right side of rule -> [(left side of rule, weight)]
         N: completed set of non-terminals
     """
     rls = {}
+    rls_bi = {}
     with open(rules, 'r') as rls_file:
         for r in rls_file:
             left, right = r.split(' -> ')
@@ -246,10 +261,18 @@ def get_rules(rules, N):
             if len(right) > 3 or len(right) < 2:
                 raise Exception("The grammar is not in binarized PCFG format!")
             right_rule = right[0:-1]
-            rls[(left, tuple(right_rule))] = float(right[-1].strip())
+            right_tpl = tuple(right_rule)
+            w = float(right[-1].strip())
+            rls_lst = rls.get(left, [])
+            rls_lst.append((right_tpl, w))
+            rls[left] = rls_lst
+            if len(right_tpl) == 2:
+                rls_bi_lst = rls_bi.get(right_tpl, [])
+                rls_bi_lst.append((left, w))
+                rls_bi[right_tpl] = rls_bi_lst
             N.add(left)
     
-    return rls, N
+    return rls, rls_bi, N
 
 
 def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False, threshold_beam=0):
@@ -262,11 +285,11 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False, thres
         unking: bool, apply basic unking
     """
     lex_rules, N, id_dict, word_dict, unk_id = get_lexicon(lexicon, unking)
-    rls, N = get_rules(rules, N)
+    rls, bi_rls, N = get_rules(rules, N)
 
     for sentence in sentences:
         sentence = sentence.strip()
-        result, root_id, backtraces, words_unk = cyk_parse(sentence, id_dict, lex_rules, N, rls, initial, unking, unk_id, threshold_beam)
+        result, root_id, backtraces, words_unk = cyk_parse(sentence, id_dict, lex_rules, N, rls, bi_rls, initial, unking, unk_id, threshold_beam)
         
         if result:
             root_bt = backtraces[tuple(root_id + [initial])]
@@ -291,31 +314,29 @@ if __name__ == "__main__":
     # sentence = "The new real estate unit would have a separate capital structure to comply with the law ."
     # run_cyk_parse("./material/large/grammar.rules", "./material/large/grammar.lexicon", [sentence], initial="ROOT")
 
-    # sentence = "a a b b b"
-    # run_cyk_parse("tests/data/parsing-testcli.rules", "tests/data/parsing-testcli.lexicon", [sentence], "WURZEL")
+    sentence = "a a"
+    run_cyk_parse("tests/data/test.rules", "tests/data/test.lexicon", [sentence])
 
     # sentences = ["He is a brilliant deipnosophist ."]
     # rules = "test.rules"
     # lexicon = "test.lexicon"
 
-    rules = "material/small/grammar.rules"
-    lexicon = "material/small/grammar.lexicon"
-    sentences_file = "material/small/sentences"
+    # rules = "material/small/grammar.rules"
+    # lexicon = "material/small/grammar.lexicon"
+    # sentences_file = "material/small/sentences"
 
     # sentences = ["a b", "a a b b b", "b a", "a a", "b" ]
 
-    sentences = []
-    c = 0
-    with open(sentences_file, "r") as sf:
-        for line in sf:
-            if c <= 3:
-                sentences.append(line)
-            c += 1
+    # sentences = []
+    # with open(sentences_file, "r") as sf:
+    #     for line in sf:
+    #         sentences.append(line)
     
-    start_time = time.time()
+    # tb = 0.02
 
-    run_cyk_parse(rules, lexicon, sentences, unking=False, threshold_beam=0)
+    # start_time = time.time()
+    # run_cyk_parse(rules, lexicon, sentences, unking=False, threshold_beam=tb)
     
     # run_cyk_parse("./tests/data/test.rules", "./tests/data/test.lexicon", sentences, threshold_beam=0.2)
     
-    print("--- %s seconds ---" % (time.time() - start_time))
+    # print("--- %s seconds ---" % (time.time() - start_time))
