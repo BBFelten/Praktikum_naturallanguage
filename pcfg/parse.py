@@ -1,4 +1,5 @@
 import heapq
+import time
 
 from .helpers.helpers import nested_tuple_to_str, tree_from_str
 
@@ -14,7 +15,7 @@ def unary_closure(rules, queue):
     
     if queue:
         for c in queue:
-            weights[c[0]] = 0.
+            weights[c[1]] = 0.
 
         while len(queue) > 0:
             current = heapq.heappop(queue)
@@ -38,7 +39,16 @@ def unary_closure(rules, queue):
     return result, backtraces
 
 
-def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, unk_id=None):
+def prune_threshold_beam(tbl, i, j, nonterminals, theta):
+    m = max([tbl[(i,j,a)] for a in nonterminals])
+    thresh = theta*m
+    for A in nonterminals:
+        if tbl[(i,j,A)] < thresh:
+            tbl[(i,j,A)] = 0
+    return tbl
+
+
+def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, unk_id=None, threshold_beam=0):
     """Function that implements the cyk-parse algorithm
     Parameters:
         sentence: str
@@ -100,14 +110,19 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, 
             if weight > 0:
                 tbl[(i-1, i, nonterminal)] = weight
                 backtraces[(i-1, i, nonterminal)] = [unary_backtraces[nonterminal]]
+        
+        if threshold_beam > 0:
+            if len(nonterminals) > 0:
+                tbl = prune_threshold_beam(tbl, i-1, i, nonterminals, threshold_beam)
     
     # width of span
     for r in range(2,n+1):
-        queue_dict = {}
         # left limit
         for i in range(n+1-r):
             # right limit
             j = i+r
+            nonterminals = set()
+            queue_dict = {}
             # split of span
             for m in range(i+1, j):
                 # add binary rules
@@ -115,7 +130,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, 
                     for rule in R:
                         if len(rule[1]) == 2 and A == rule[0]:
                             B, C = rule[1]
-                            if (i,m,B) in tbl and (m,j,C) in tbl:
+                            # if (i,m,B) in tbl and (m,j,C) in tbl:
+                            if tbl.get((i,m,B), 0) > 0 and tbl.get((m,j,C), 0) > 0:
+                                nonterminals.add(A)
                                 w = R[rule] * tbl[(i,m,B)] * tbl[(m,j,C)]
                                 if w > tbl.get((i,j,A), 0): 
                                     queue_dict[A] = w
@@ -126,18 +143,22 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, initial="ROOT", unking=False, 
                                     root_id = [i,j]
                                     found = True
                 
-                # add unary rules
-                queue = [(-v, k) for k, v in queue_dict.items()]
-                heapq.heapify(queue)
-                unary_weights, unary_backtraces = unary_closure(R, queue)
-                for nonterminal, weight in unary_weights.items():
-                    if weight > 0:
-                        tbl[(i,j,nonterminal)] = weight
-                        backtraces[(i,j,nonterminal)] = [unary_backtraces[nonterminal]]
-                    # check if the root was reached
-                    if nonterminal == initial and i == 0 and j == n:
-                        root_id = [i,j]
-                        found = True
+            # add unary rules
+            queue = [(-v, k) for k, v in queue_dict.items()]
+            heapq.heapify(queue)
+            unary_weights, unary_backtraces = unary_closure(R, queue)
+            for nonterminal, weight in unary_weights.items():
+                if weight > 0:
+                    tbl[(i,j,nonterminal)] = weight
+                    backtraces[(i,j,nonterminal)] = [unary_backtraces[nonterminal]]
+                # check if the root was reached
+                if nonterminal == initial and i == 0 and j == n:
+                    root_id = [i,j]
+                    found = True
+
+            if threshold_beam > 0:
+                if len(nonterminals) > 0:
+                    tbl = prune_threshold_beam(tbl, i, j, nonterminals, threshold_beam)
     
     if found:
         return tbl, root_id, backtraces, words_unk
@@ -231,7 +252,7 @@ def get_rules(rules, N):
     return rls, N
 
 
-def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False):
+def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False, threshold_beam=0):
     """Run the cyk parse algorithm
     Parameters:
         rules: path to file containing grammar rules
@@ -245,12 +266,13 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False):
 
     for sentence in sentences:
         sentence = sentence.strip()
-        result, root_id, backtraces, words_unk = cyk_parse(sentence, id_dict, lex_rules, N, rls, initial, unking, unk_id)
+        result, root_id, backtraces, words_unk = cyk_parse(sentence, id_dict, lex_rules, N, rls, initial, unking, unk_id, threshold_beam)
         
         if result:
             root_bt = backtraces[tuple(root_id + [initial])]
             root = tuple(root_id + [initial] + root_bt)
-            tree_str = nested_tuple_to_str(best_tree(backtraces, root, word_dict))
+            bt = best_tree(backtraces, root, word_dict)
+            tree_str = nested_tuple_to_str(bt)
             # replace 'UNK' with original words
             if unking:
                 tree = tree_from_str(tree_str, get_terminal_list=False, unking=True, unk_list=words_unk)
@@ -269,17 +291,31 @@ if __name__ == "__main__":
     # sentence = "The new real estate unit would have a separate capital structure to comply with the law ."
     # run_cyk_parse("./material/large/grammar.rules", "./material/large/grammar.lexicon", [sentence], initial="ROOT")
 
-    # sentences = ["a b", "a a b b b", "b a", "a a", "b" ]
-    # run_cyk_parse("./tests/data/test.rules", "./tests/data/test.lexicon", sentences)
-
     # sentence = "a a b b b"
     # run_cyk_parse("tests/data/parsing-testcli.rules", "tests/data/parsing-testcli.lexicon", [sentence], "WURZEL")
 
-    sentences = ["He is a brilliant deipnosophist ."]
-    rules = "temp/small.rules"
-    lexicon = "temp/small.lexicon"
+    # sentences = ["He is a brilliant deipnosophist ."]
+    # rules = "test.rules"
+    # lexicon = "test.lexicon"
 
-    # rules = "material/small/grammar.rules"
-    # lexicon = "material/small/grammar.lexicon"
+    rules = "material/small/grammar.rules"
+    lexicon = "material/small/grammar.lexicon"
+    sentences_file = "material/small/sentences"
 
-    run_cyk_parse(rules, lexicon, sentences, unking=True)
+    # sentences = ["a b", "a a b b b", "b a", "a a", "b" ]
+
+    sentences = []
+    c = 0
+    with open(sentences_file, "r") as sf:
+        for line in sf:
+            if c <= 3:
+                sentences.append(line)
+            c += 1
+    
+    start_time = time.time()
+
+    run_cyk_parse(rules, lexicon, sentences, unking=False, threshold_beam=0)
+    
+    # run_cyk_parse("./tests/data/test.rules", "./tests/data/test.lexicon", sentences, threshold_beam=0.2)
+    
+    print("--- %s seconds ---" % (time.time() - start_time))

@@ -79,3 +79,11 @@ def induce_grammar(corpus, grammar=None):
     else:
         for word in words:
             print(word)
+
+
+if __name__ == "__main__":
+    lines = []
+    with open("material/small/gold.mrg") as corp:
+        for line in corp:
+            lines.append(line.strip())
+    induce_grammar(lines)

@@ -8,7 +8,7 @@ from pcfg.unking import basic_unking
 
 
 def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None, initial_nonterminal=None, unking=False,
-         smoothing=None, threshold_beam=None, rank_beam=None, astar=None,
+         smoothing=None, threshold_beam=0, rank_beam=None, astar=None,
          horizontal=None, vertical=None, threshold=None):
 
     if command == "induce":
@@ -17,12 +17,12 @@ def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None,
     elif command == "parse":
         if not rules or not lexicon:
             raise Exception("parse requires grammar and lexicon!")
-        if paradigma == "deductive" or smoothing or threshold_beam or rank_beam or astar:
+        if paradigma == "deductive" or smoothing or rank_beam or astar:
             sys.exit(22)
         else:
             sentences = input.read().strip().split('\n')
             # print(lexicon)
-            return(run_cyk_parse(rules=rules, lexicon=lexicon, sentences=sentences, initial=initial_nonterminal, unking=unking))
+            return(run_cyk_parse(rules=rules, lexicon=lexicon, sentences=sentences, initial=initial_nonterminal, unking=unking, threshold_beam=threshold_beam))
     
     elif command == "binarise":
         sys.exit(22)
@@ -67,7 +67,7 @@ def parse_arguments():
                               help='Replace unknown words by UNK (3b).')
     parse_parser.add_argument('-s', '--smoothing', action='store_true',
                               help='Replace unknown words according to the Smoothing-Implementierung (3d).')
-    parse_parser.add_argument('-t', '--threshold-beam', type=float,
+    parse_parser.add_argument('-t', '--threshold-beam', type=float, default=0,
                               help='Apply Beam-Search with Threshold (4a).')
     parse_parser.add_argument('-r', '--rank-beam', type=int,
                               help='Apply Beam-Search with constant Beam (4a).')
