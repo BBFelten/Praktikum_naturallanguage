@@ -51,6 +51,7 @@ def prune_threshold_beam(tbl, i, j, nonterminals, theta):
         pruned dictionary of the form (i, j, non-terminal) -> weight
     """
     m = max([tbl[(i,j,a)] for a in nonterminals])
+    
     thresh = theta*m
     for A in nonterminals:
         if tbl[(i,j,A)] < thresh:
@@ -58,7 +59,29 @@ def prune_threshold_beam(tbl, i, j, nonterminals, theta):
     return tbl
 
 
-def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unking=False, unk_id=None, threshold_beam=0):
+def prune_fixed_size_beam(tbl, i, j, nonterminals, n):
+    """Implement pruning with fixed beam
+    Parameters:
+        tbl: dictionary of the form (i, j, non-terminal) -> weight
+        i, j: current indices
+        nonterminals: list of nonterminals at current cell
+        n: number of best entries that will be kept
+    returns:
+        pruned dictionary of the form (i, j, non-terminal) -> weight
+    """
+    current = [tbl[(i,j,a)] for a in nonterminals]
+    if len(current) <= n:
+        return tbl
+
+    current.sort(reverse=True)
+    thresh = current[n-1]
+    for A in nonterminals:
+        if tbl[(i,j,A)] < thresh:
+            tbl[(i,j,A)] = 0
+    return tbl
+
+
+def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unking=False, unk_id=None, threshold_beam=0, rank_beam=0):
     """Function that implements the cyk-parse algorithm
     Parameters:
         sentence: str
@@ -129,6 +152,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
         if threshold_beam > 0:
             if len(nonterminals) > 0:
                 tbl = prune_threshold_beam(tbl, i-1, i, nonterminals, threshold_beam)
+        if rank_beam > 0:
+            if len(nonterminals) > 0:
+                tbl = prune_fixed_size_beam(tbl, i-1, i, nonterminals, rank_beam)
     
     # width of span
     for r in range(2,n+1):
@@ -160,7 +186,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
             unary_weights, unary_backtraces = unary_closure(R, queue)
             for nonterminal, weight in unary_weights.items():
                 if weight > 0:
-                    tbl[(i,j,nonterminal)] = weight
+                    weight = 0 if weight < tb or weight < rb else weight
+                    tbl[(i-1, i, nonterminal)] = weight
+
                     backtraces[(i,j,nonterminal)] = [unary_backtraces[nonterminal]]
                 # check if the root was reached
                 if nonterminal == initial and i == 0 and j == n:
@@ -170,6 +198,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
             if threshold_beam > 0:
                 if len(nonterminals) > 0:
                     tbl = prune_threshold_beam(tbl, i, j, nonterminals, threshold_beam)
+            if rank_beam > 0:
+                if len(nonterminals) > 0:
+                    tbl = prune_fixed_size_beam(tbl, i, j, nonterminals, rank_beam)
     
     if found:
         return tbl, root_id, backtraces, words_unk
@@ -275,7 +306,7 @@ def get_rules(rules, N):
     return rls, rls_bi, N
 
 
-def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False, threshold_beam=0):
+def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False, threshold_beam=0, rank_beam=0):
     """Run the cyk parse algorithm
     Parameters:
         rules: path to file containing grammar rules
@@ -289,7 +320,7 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False, thres
 
     for sentence in sentences:
         sentence = sentence.strip()
-        result, root_id, backtraces, words_unk = cyk_parse(sentence, id_dict, lex_rules, N, rls, bi_rls, initial, unking, unk_id, threshold_beam)
+        result, root_id, backtraces, words_unk = cyk_parse(sentence, id_dict, lex_rules, N, rls, bi_rls, initial, unking, unk_id, threshold_beam, rank_beam)
         
         if result:
             root_bt = backtraces[tuple(root_id + [initial])]
@@ -314,29 +345,29 @@ if __name__ == "__main__":
     # sentence = "The new real estate unit would have a separate capital structure to comply with the law ."
     # run_cyk_parse("./material/large/grammar.rules", "./material/large/grammar.lexicon", [sentence], initial="ROOT")
 
-    sentence = "a a"
-    run_cyk_parse("tests/data/test.rules", "tests/data/test.lexicon", [sentence])
+    # sentence = "a a"
+    # run_cyk_parse("tests/data/test.rules", "tests/data/test.lexicon", [sentence])
 
     # sentences = ["He is a brilliant deipnosophist ."]
     # rules = "test.rules"
     # lexicon = "test.lexicon"
 
-    # rules = "material/small/grammar.rules"
-    # lexicon = "material/small/grammar.lexicon"
-    # sentences_file = "material/small/sentences"
+    rules = "material/small/grammar.rules"
+    lexicon = "material/small/grammar.lexicon"
+    sentences_file = "material/small/sentences"
 
-    # sentences = ["a b", "a a b b b", "b a", "a a", "b" ]
+    # sentences = ["The decision was announced after trading ended ."]
 
-    # sentences = []
-    # with open(sentences_file, "r") as sf:
-    #     for line in sf:
-    #         sentences.append(line)
+    sentences = []
+    with open(sentences_file, "r") as sf:
+        for line in sf:
+            sentences.append(line)
     
-    # tb = 0.02
+    tb = 0.01
 
-    # start_time = time.time()
-    # run_cyk_parse(rules, lexicon, sentences, unking=False, threshold_beam=tb)
+    start_time = time.time()
+    run_cyk_parse(rules, lexicon, sentences, unking=False, threshold_beam=tb, rank_beam=10)
     
     # run_cyk_parse("./tests/data/test.rules", "./tests/data/test.lexicon", sentences, threshold_beam=0.2)
     
-    # print("--- %s seconds ---" % (time.time() - start_time))
+    print("--- %s seconds ---" % (time.time() - start_time))

@@ -5,6 +5,7 @@ from pcfg.induce import induce_grammar
 from pcfg.parse import run_cyk_parse
 from pcfg.debinarise import run_debinarise
 from pcfg.unking import basic_unking
+from pcfg.binarise import run_marcovise
 
 
 def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None, initial_nonterminal=None, unking=False,
@@ -17,15 +18,19 @@ def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None,
     elif command == "parse":
         if not rules or not lexicon:
             raise Exception("parse requires grammar and lexicon!")
-        if paradigma == "deductive" or smoothing or rank_beam or astar:
+        if paradigma == "deductive" or smoothing or astar:
             sys.exit(22)
         else:
             sentences = input.read().strip().split('\n')
             # print(lexicon)
-            return(run_cyk_parse(rules=rules, lexicon=lexicon, sentences=sentences, initial=initial_nonterminal, unking=unking, threshold_beam=threshold_beam))
+            return(run_cyk_parse(rules=rules, lexicon=lexicon, sentences=sentences, initial=initial_nonterminal, unking=unking, threshold_beam=threshold_beam, rank_beam=rank_beam))
     
     elif command == "binarise":
-        sys.exit(22)
+        if horizontal:
+            horizontal = int(horizontal)
+        if vertical:
+            vertical = int(vertical)
+        return run_marcovise(input, horizontal, vertical)
     
     elif command == "debinarise":
         return(run_debinarise(input))
@@ -69,7 +74,7 @@ def parse_arguments():
                               help='Replace unknown words according to the Smoothing-Implementierung (3d).')
     parse_parser.add_argument('-t', '--threshold-beam', type=float, default=0,
                               help='Apply Beam-Search with Threshold (4a).')
-    parse_parser.add_argument('-r', '--rank-beam', type=int,
+    parse_parser.add_argument('-r', '--rank-beam', type=int, default=0,
                               help='Apply Beam-Search with constant Beam (4a).')
     parse_parser.add_argument('-a', '--astar', type=str,
                               help='Apply A*-search (4b). Load Outside weights from file PATH.')
