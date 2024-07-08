@@ -176,9 +176,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
                                 tbl[(i,j,A)] = w
                                 backtraces[(i,j,A)] = [B, C, m]
                 
-                            if A == initial and i == 0 and j == n:
-                                root_id = [i,j]
-                                found = True
+                                if A == initial and i == 0 and j == n:
+                                    root_id = [i,j]
+                                    found = True
                 
             # add unary rules
             queue = [(-v, k) for k, v in queue_dict.items()]
@@ -186,9 +186,7 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
             unary_weights, unary_backtraces = unary_closure(R, queue)
             for nonterminal, weight in unary_weights.items():
                 if weight > 0:
-                    weight = 0 if weight < tb or weight < rb else weight
-                    tbl[(i-1, i, nonterminal)] = weight
-
+                    tbl[(i, j, nonterminal)] = weight
                     backtraces[(i,j,nonterminal)] = [unary_backtraces[nonterminal]]
                 # check if the root was reached
                 if nonterminal == initial and i == 0 and j == n:
