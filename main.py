@@ -9,7 +9,7 @@ from pcfg.binarise import run_marcovise
 
 
 def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None, initial_nonterminal=None, unking=False,
-         smoothing=None, threshold_beam=0, rank_beam=None, astar=None,
+         smoothing=False, threshold_beam=0, rank_beam=None, astar=None,
          horizontal=None, vertical=None, threshold=None):
 
     if command == "induce":
@@ -18,12 +18,12 @@ def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None,
     elif command == "parse":
         if not rules or not lexicon:
             raise Exception("parse requires grammar and lexicon!")
-        if paradigma == "deductive" or smoothing or astar:
+        if paradigma == "deductive" or astar:
             sys.exit(22)
         else:
             sentences = input.read().strip().split('\n')
             # print(lexicon)
-            return(run_cyk_parse(rules=rules, lexicon=lexicon, sentences=sentences, initial=initial_nonterminal, unking=unking, threshold_beam=threshold_beam, rank_beam=rank_beam))
+            return(run_cyk_parse(rules=rules, lexicon=lexicon, sentences=sentences, initial=initial_nonterminal, unking=unking, threshold_beam=threshold_beam, rank_beam=rank_beam, smoothing=smoothing))
     
     elif command == "binarise":
         if horizontal:
