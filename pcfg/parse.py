@@ -50,7 +50,7 @@ def prune_threshold_beam(tbl, i, j, nonterminals, theta):
     returns:
         pruned dictionary of the form (i, j, non-terminal) -> weight
     """
-    m = max([tbl[(i,j,a)] for a in nonterminals])
+    m = max(tbl[(i,j,a)] for a in nonterminals)
     
     thresh = theta*m
     for A in nonterminals:
@@ -146,6 +146,7 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
         unary_weights, unary_backtraces = unary_closure(combined_d, queue)
         for nonterminal, weight in unary_weights.items():
             if weight > 0:
+                nonterminals.add(nonterminal)
                 tbl[(i-1, i, nonterminal)] = weight
                 backtraces[(i-1, i, nonterminal)] = [unary_backtraces[nonterminal]]
         
@@ -185,6 +186,7 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
             heapq.heapify(queue)
             unary_weights, unary_backtraces = unary_closure(R, queue)
             for nonterminal, weight in unary_weights.items():
+                nonterminals.add(nonterminal)
                 if weight > 0:
                     tbl[(i, j, nonterminal)] = weight
                     backtraces[(i,j,nonterminal)] = [unary_backtraces[nonterminal]]
@@ -364,7 +366,7 @@ if __name__ == "__main__":
     tb = 0.01
 
     start_time = time.time()
-    run_cyk_parse(rules, lexicon, sentences, unking=False, threshold_beam=tb, rank_beam=10)
+    run_cyk_parse(rules, lexicon, sentences, unking=False, threshold_beam=tb, rank_beam=15)
     
     # run_cyk_parse("./tests/data/test.rules", "./tests/data/test.lexicon", sentences, threshold_beam=0.2)
     
