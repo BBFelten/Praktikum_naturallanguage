@@ -3,11 +3,11 @@ def get_signature(word, i):
         return "UNK"
     
     letter_suffix = "-S"
-    number_suffix = "-EPS"
-    dash_suffix = "-EPS"
-    period_suffix = "-EPS"
-    comma_suffix = "-EPS"
-    word_suffix = "-EPS"
+    number_suffix = ""
+    dash_suffix = ""
+    period_suffix = ""
+    comma_suffix = ""
+    word_suffix = ""
 
     if word[0].isupper():
         if len([l for l in word if l.islower()]) == 0:
