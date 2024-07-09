@@ -42,7 +42,7 @@ def get_signature(word, i):
     if suffix == "":
         return "UNK"
     
-    return "UNK" + suffix
+    return "UNK-" + suffix
 
 
 def tree_from_str(input, get_terminal_list=False, unking=False, unk_list=[], smoothing=False, unk_signatures=["UNK"]):
