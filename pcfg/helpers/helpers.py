@@ -19,6 +19,8 @@ def get_signature(word, i):
     
     elif len([l for l in word if l.islower()]) > 0:
         letter_suffix = "-L"
+    elif len([l for l in word if l.isalpha()]):
+        letter_suffix = "-U"
     
     if word.isdigit():
         number_suffix = "-N"

@@ -1,4 +1,4 @@
-from .helpers.helpers import tree_from_str, nested_tuple_to_str
+from helpers.helpers import tree_from_str, nested_tuple_to_str
 
 def basic_unking(corpus, threshold, smooth=False):
     wordcounts = {}
@@ -24,4 +24,8 @@ def basic_unking(corpus, threshold, smooth=False):
     return modified_corpus
 
 if __name__ == "__main__":
-    basic_unking(["(ROOT (S (NP-SBJ (NP (NNP Pierre) (NNP Vinken)) (, ,) (ADJP (NP (CD 61) (NNS years)) (JJ old)) (, ,)) (VP (MD will) (VP (VB join) (NP (DT the) (NN board)) (PP-CLR (IN as) (NP (DT a) (JJ nonexecutive) (NN director))) (NP-TMP (NNP Nov.) (CD 29)))) (. .)))", "(ROOT (S (NP-SBJ (NNP Mr.) (NNP Vinken)) (VP (VBZ is) (NP-PRD (NP (NN chairman)) (PP (IN of) (NP (NP (NNP Elsevier) (NNP N.V.)) (, ,) (NP (DT the) (NNP Dutch) (VBG publishing) (NN group)))))) (. .)))"], 10, smooth=True)
+    trees = []
+    with open(r"material/small/gold.mrg", "r") as tf:
+        for line in tf:
+            trees.append(line)
+    basic_unking(trees, 10, smooth=True)
