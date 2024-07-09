@@ -2,7 +2,7 @@ def get_signature(word, i):
     if len(word) == 0:
         return "UNK"
     
-    letter_suffix = "-S"
+    letter_suffix = "S"
     number_suffix = ""
     dash_suffix = ""
     period_suffix = ""
@@ -11,30 +11,38 @@ def get_signature(word, i):
 
     if word[0].isupper():
         if len([l for l in word if l.islower()]) == 0:
-            letter_suffix = "-AC"
+            letter_suffix = "AC"
         elif i == 0:
-            letter_suffix = "-SC"
+            letter_suffix = "SC"
         else:
-            letter_suffix = "-C"
+            letter_suffix = "C"
+    
+    elif len([l for l in word if l.islower()]) > 0:
+        letter_suffix = "L"
     
     if word.isdigit():
-        number_suffix = "-N"
+        number_suffix = "N"
     elif len([l for l in word if l.isdigit()]) > 0:
-        number_suffix = "-n"
+        number_suffix = "n"
     
     if "-" in word:
-        dash_suffix = "-H"
+        dash_suffix = "H"
     
     if "." in word:
-        period_suffix = "-P"
+        period_suffix = "P"
 
     if "," in word:
-        comma_suffix = "-C"
+        comma_suffix = "C"
     
     if len(word) > 3 and word[-1].isalpha():
         word_suffix = "-" + word[-1].lower()
     
-    return "UNK" + letter_suffix + number_suffix + dash_suffix + period_suffix + comma_suffix + word_suffix
+    suffix = letter_suffix + number_suffix + dash_suffix + period_suffix + comma_suffix + word_suffix
+
+    if suffix == "":
+        return "UNK"
+    
+    return "UNK" + suffix
 
 
 def tree_from_str(input, get_terminal_list=False, unking=False, unk_list=[], smoothing=False, unk_signatures=["UNK"]):
