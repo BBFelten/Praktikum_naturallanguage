@@ -1,7 +1,7 @@
 import heapq
 import time
 
-from .helpers.helpers import nested_tuple_to_str, tree_from_str
+from .helpers.helpers import nested_tuple_to_str, tree_from_str, get_signature
 
 def unary_closure(rules, queue):
     """Function that finds unary rules for each cell
@@ -81,17 +81,16 @@ def prune_fixed_size_beam(tbl, i, j, nonterminals, n):
     return tbl
 
 
-def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unking=False, unk_id=None, threshold_beam=0, rank_beam=0):
+def cyk_parse(sentence, id_dict, lex_rules, R, R_binary, initial="ROOT", unking=False, threshold_beam=0, rank_beam=0, smoothing=False):
     """Function that implements the cyk-parse algorithm
     Parameters:
         sentence: str
         id_dict: dictionary that maps words to indices
         lex_rules: dictionary of lexicon rules of the form (non-terminal, word index) -> weight
-        N: set of non-terminals
         R: dictionary of grammar rules in the form (left side of rule, (right side of rule)) -> weight
         initial: str that represents root of tree
         unking: bool, apply basic unking
-        unk_id: int or None, ID of 'UNK' in the dictionaries
+        smoothing: bool, apply smoothing
     returns:
         tbl: dictionary of the form (i, j, non-terminal) -> weight
         root_id: tuple of indices that contain the root
@@ -102,14 +101,20 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
 
     # basic unking
     words_unk = []
-    if unking:
+    unk_signatures = set()
+    if unking or smoothing:
         words = []
-        for word in words_orig:
+        for word_index, word in enumerate(words_orig):
             if word in id_dict:
                 words.append(word)
             else:
                 words_unk.append(word)
-                words.append("UNK")
+                if smoothing:
+                    signature = get_signature(word, word_index)
+                    words.append(signature)
+                    unk_signatures.add(signature)
+                else:
+                    words.append("UNK")
     else:
         words = words_orig
 
@@ -120,9 +125,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
     backtraces = {}
     # iterate over indices and get lexicon rules
     for i in range(1,n+1):
-        word_int = id_dict.get(words[i-1], unk_id)
-        if word_int == unk_id and not unking:
-            return False, (), {}, []
+        if words[i-1] not in id_dict:
+            return False, (), {}, [], set()
+        word_int = id_dict[words[i-1]]
         nonterminals = set()
         for A, lex in lex_rules.items():
             A_lex = [elem for elem in lex if elem[0] == word_int]
@@ -203,9 +208,9 @@ def cyk_parse(sentence, id_dict, lex_rules, N, R, R_binary, initial="ROOT", unki
                     tbl = prune_fixed_size_beam(tbl, i, j, nonterminals, rank_beam)
     
     if found:
-        return tbl, root_id, backtraces, words_unk
+        return tbl, root_id, backtraces, words_unk, unk_signatures
     
-    return False, (), {}, []
+    return False, (), {}, [], set()
 
 
 def best_tree(backtraces, root, word_dict):
@@ -228,14 +233,12 @@ def best_tree(backtraces, root, word_dict):
         return (A, best_tree(backtraces, left, word_dict), best_tree(backtraces, right, word_dict))
 
 
-def get_lexicon(lexicon, unking=False):
+def get_lexicon(lexicon):
     """Get non-terminal rules from lexicon file
     Parameters:
         lexicon: path to lexicon file
-        unking: bool, apply basic unking
     returns:
         lex_rules: dictionary of lexicon rules of the form non-terminal -> (word index, weight)
-        N: Set of non-terminals
         id_dict: dictionary that maps words to indices
         word_dict: dictionary that maps indices to words
     """
@@ -243,7 +246,6 @@ def get_lexicon(lexicon, unking=False):
     lex_rules = {}
     id_dict = {}
     word_dict = {}
-    N = set()
     i = 0
     with open(lexicon, 'r') as lex_file:
         for l in lex_file:
@@ -260,19 +262,11 @@ def get_lexicon(lexicon, unking=False):
             lex_rls_lst = lex_rules.get(l_splt[0], [])
             lex_rls_lst.append((id, float(l_splt[2])))
             lex_rules[l_splt[0]] = lex_rls_lst
-            N.add(l_splt[0])
     
-    if unking and "UNK" not in id_dict:
-        unk_id = i+1
-        id_dict["UNK"] = unk_id
-        word_dict[i+1] = "UNK"
-    else:
-        unk_id = None
-    
-    return lex_rules, N, id_dict, word_dict, unk_id
+    return lex_rules, id_dict, word_dict
 
 
-def get_rules(rules, N):
+def get_rules(rules):
     """Get rules from grammar file
     Parameters:
         rules: path to grammar file
@@ -301,12 +295,11 @@ def get_rules(rules, N):
                 rls_bi_lst = rls_bi.get(right_tpl, [])
                 rls_bi_lst.append((left, w))
                 rls_bi[right_tpl] = rls_bi_lst
-            N.add(left)
     
-    return rls, rls_bi, N
+    return rls, rls_bi
 
 
-def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False, threshold_beam=0, rank_beam=0):
+def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False, threshold_beam=0, rank_beam=0, smoothing=False):
     """Run the cyk parse algorithm
     Parameters:
         rules: path to file containing grammar rules
@@ -315,21 +308,25 @@ def run_cyk_parse(rules, lexicon, sentences, initial="ROOT", unking=False, thres
         initial(str): root symbol of the parse tree
         unking: bool, apply basic unking
     """
-    lex_rules, N, id_dict, word_dict, unk_id = get_lexicon(lexicon, unking)
-    rls, bi_rls, N = get_rules(rules, N)
+    lex_rules, id_dict, word_dict = get_lexicon(lexicon)
+    rls, bi_rls = get_rules(rules)
 
     for sentence in sentences:
         sentence = sentence.strip()
-        result, root_id, backtraces, words_unk = cyk_parse(sentence, id_dict, lex_rules, N, rls, bi_rls, initial, unking, unk_id, threshold_beam, rank_beam)
+        result, root_id, backtraces, words_unk, unk_signatures = cyk_parse(sentence, id_dict, lex_rules, rls, bi_rls, initial, unking, threshold_beam, rank_beam, smoothing)
         
         if result:
             root_bt = backtraces[tuple(root_id + [initial])]
             root = tuple(root_id + [initial] + root_bt)
             bt = best_tree(backtraces, root, word_dict)
             tree_str = nested_tuple_to_str(bt)
-            # replace 'UNK' with original words
-            if unking:
-                tree = tree_from_str(tree_str, get_terminal_list=False, unking=True, unk_list=words_unk)
+            
+            if unking or smoothing:
+                # get original words back
+                if smoothing:
+                    tree = tree_from_str(tree_str, get_terminal_list=False, unking=True, unk_list=words_unk, unk_signatures=unk_signatures)
+                else:
+                    tree = tree_from_str(tree_str, get_terminal_list=False, unking=True, unk_list=words_unk, unk_signatures=["UNK"])
                 tree_str = nested_tuple_to_str(tree)
             
             print(tree_str)

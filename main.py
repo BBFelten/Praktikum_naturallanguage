@@ -39,7 +39,7 @@ def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None,
         return basic_unking(input, float(threshold))
     
     elif command == "smooth":
-        sys.exit(22)
+        return basic_unking(input, float(threshold), smooth=True)
     
     elif command == "outside":
         sys.exit(22)

@@ -1,6 +1,6 @@
 from .helpers.helpers import tree_from_str, nested_tuple_to_str
 
-def basic_unking(corpus, threshold):
+def basic_unking(corpus, threshold, smooth=False):
     wordcounts = {}
     lines = []
     for line in corpus:
@@ -14,7 +14,7 @@ def basic_unking(corpus, threshold):
 
     modified_corpus = ""
     for line in lines:
-        tree = tree_from_str(line, get_terminal_list=False, unking=True, unk_list=set(to_be_replaced))
+        tree = tree_from_str(line, get_terminal_list=False, unking=True, unk_list=set(to_be_replaced), smoothing=smooth)
         tree_str = nested_tuple_to_str(tree)
 
         modified_corpus += tree_str + "\n"
@@ -24,4 +24,4 @@ def basic_unking(corpus, threshold):
     return modified_corpus
 
 if __name__ == "__main__":
-    basic_unking(["(ROOT (S (NP-SBJ (NP (NNP Pierre) (NNP Vinken)) (, ,) (ADJP (NP (CD 61) (NNS years)) (JJ old)) (, ,)) (VP (MD will) (VP (VB join) (NP (DT the) (NN board)) (PP-CLR (IN as) (NP (DT a) (JJ nonexecutive) (NN director))) (NP-TMP (NNP Nov.) (CD 29)))) (. .)))", "(ROOT (S (NP-SBJ (NNP Mr.) (NNP Vinken)) (VP (VBZ is) (NP-PRD (NP (NN chairman)) (PP (IN of) (NP (NP (NNP Elsevier) (NNP N.V.)) (, ,) (NP (DT the) (NNP Dutch) (VBG publishing) (NN group)))))) (. .)))"], 10)
+    basic_unking(["(ROOT (S (NP-SBJ (NP (NNP Pierre) (NNP Vinken)) (, ,) (ADJP (NP (CD 61) (NNS years)) (JJ old)) (, ,)) (VP (MD will) (VP (VB join) (NP (DT the) (NN board)) (PP-CLR (IN as) (NP (DT a) (JJ nonexecutive) (NN director))) (NP-TMP (NNP Nov.) (CD 29)))) (. .)))", "(ROOT (S (NP-SBJ (NNP Mr.) (NNP Vinken)) (VP (VBZ is) (NP-PRD (NP (NN chairman)) (PP (IN of) (NP (NP (NNP Elsevier) (NNP N.V.)) (, ,) (NP (DT the) (NNP Dutch) (VBG publishing) (NN group)))))) (. .)))"], 10, smooth=True)
