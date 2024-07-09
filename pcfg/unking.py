@@ -1,4 +1,4 @@
-from helpers.helpers import tree_from_str, nested_tuple_to_str
+from .helpers.helpers import tree_from_str, nested_tuple_to_str
 
 def basic_unking(corpus, threshold, smooth=False):
     wordcounts = {}

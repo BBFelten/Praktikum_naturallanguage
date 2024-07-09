@@ -69,15 +69,14 @@ def tree_from_str(input, get_terminal_list=False, unking=False, unk_list=[], smo
                         elif split[1] in unk_list:
                             if smoothing:
                                 terminal = get_signature(split[1], word_count)
-                                word_count += 1
                             else:
                                 terminal = "UNK"
                         else:
                             terminal = split[1]
                     else:
                         terminal = split[1]
-                    
                     current.append(terminal)
+                    word_count += 1
                     if get_terminal_list:
                         terminal_list.append(terminal)
                 else:
@@ -99,7 +98,6 @@ def tree_from_str(input, get_terminal_list=False, unking=False, unk_list=[], smo
                         elif split[1] in unk_list:
                             if smoothing:
                                 terminal = get_signature(split[1], word_count)
-                                word_count += 1
                             else:
                                 terminal = "UNK"
                         else:
@@ -107,7 +105,9 @@ def tree_from_str(input, get_terminal_list=False, unking=False, unk_list=[], smo
                     else:
                         terminal = split[1]
                     current.append(terminal)
-                    terminal_list.append(terminal)
+                    word_count += 1
+                    if get_terminal_list:
+                        terminal_list.append(terminal)
                 else:
                     raise Exception("{} is not a valid string in PTB format!".format(l))
                 w = ''
