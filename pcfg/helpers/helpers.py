@@ -35,7 +35,7 @@ def get_signature(word, i):
         comma_suffix = "C"
     
     if len(word) > 3 and word[-1].isalpha():
-        word_suffix = "-" + word[-1].lower()
+        word_suffix = word[-1].lower()
     
     suffix = letter_suffix + number_suffix + dash_suffix + period_suffix + comma_suffix + word_suffix
 
