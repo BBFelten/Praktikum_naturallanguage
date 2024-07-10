@@ -10,8 +10,7 @@ def add_parents(node, ancestors):
     """
     if len(ancestors) <= 1:
         return node
-    if ancestors[-1] == node.split("|")[0]:
-        return node
+
     return node + "^<{}>".format(",".join(ancestors[1:]))
 
 def marcovise(tree, h, v, ancestors=[]):
@@ -36,15 +35,19 @@ def marcovise(tree, h, v, ancestors=[]):
         new_ancestors = new_ancestors[-v:]
     
     if len(right) == 1:
-        return tree
-    elif len(right) == 2:
+        if isinstance(right[0], str):
+            return tree
+        return (add_parents(left, ancestors), marcovise(right[0], h, v, new_ancestors))
+    
+    if len(right) == 2:
         return (add_parents(left, ancestors), marcovise(right[0], h, v, new_ancestors), marcovise(right[1], h, v, new_ancestors))
-    else:
-        neighbors = [elem[0] for elem in right[1:]]
-        if h:
-            neighbors = neighbors[:h]
-        new_node = tree[0].split("|")[0] + "|<{}>".format(",".join(neighbors))
-        return (add_parents(left, ancestors), marcovise(right[0], h, v, new_ancestors), marcovise([new_node] + list(right[1:]), h, v, new_ancestors))
+    
+    neighbors = [elem[0] for elem in right[1:]]
+    if h:
+        neighbors = neighbors[:h]
+    new_node = tree[0].split("|")[0] + "|<{}>".format(",".join(neighbors))
+    
+    return (add_parents(left, ancestors), marcovise(right[0], h, v, new_ancestors), marcovise([new_node] + list(right[1:]), h, v, new_ancestors))
 
 
 def run_marcovise(trees, horizontal, vertical):
@@ -60,4 +63,4 @@ def run_marcovise(trees, horizontal, vertical):
 
 
 if __name__ == "__main__":
-    run_marcovise(["(S (A a) (B b) (C c) (D d))"], None, None)
+    run_marcovise(["(ROOT (S (NP-SBJ (PRP It)) (VP (VBZ has) (NP (NP (DT no) (NN bearing)) (PP-DIR (IN on) (NP (NP (PRP$ our) (NN work) (NN force)) (NP-TMP (NN today)))))) (. .)))"], 10, 3)
