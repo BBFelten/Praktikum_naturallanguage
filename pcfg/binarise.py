@@ -1,6 +1,6 @@
 from .helpers.helpers import tree_from_str, nested_tuple_to_str
 
-def add_parents(node, ancestors):
+def add_parents(node, ancestors, lvl, v):
     """Add parent nodes to node
     Parameters:
         node: current node
@@ -8,12 +8,47 @@ def add_parents(node, ancestors):
     Returns:
         node with ancestors
     """
-    if len(ancestors) <= 1:
+    if lvl == 0:
+        return node
+    
+    ancestors_lst = []
+    parent = node.split("|")[0]
+    for i in range(v-1):
+        if lvl-i > 0:
+            parent = ancestors[(lvl-i, parent)].split("|")[0]
+            ancestors_lst.append(parent)
+
+    if len(ancestors_lst) < 1:
         return node
 
-    return node + "^<{}>".format(",".join(ancestors[1:]))
+    return node + "^<{}>".format(",".join(ancestors_lst))
 
-def marcovise(tree, h, v, ancestors=[]):
+def build_backtraces(tree, lvl=1, ancestors={}):
+    """Recursively build dictionary of ancestors from the original tree
+    Parameters:
+        tree: list of lists, input tree
+        lvl: int, the current level in the tree counted from the top
+        ancestors: dictionary of the form (lvl, node) -> node
+    Returns:
+        dictionary of the form (lvl, node) -> node
+    """
+    if isinstance(tree, str):
+        return ancestors
+    
+    left = tree[0]
+    right = tree[1:]
+
+    if len(right) <= 2 and isinstance(right[-1], str):
+        return ancestors
+
+    for subtree in right:
+        ancestors[(lvl, subtree[0])] = left
+        ancestors = build_backtraces(subtree, lvl+1, ancestors)
+    
+    return ancestors
+
+
+def marcovise(tree, h, v, ancestors, lvl=0):
     """Binarise and marcovise a tree recursively
     Parameters:
         tree: (list / tuple) non-binary tree
@@ -29,25 +64,19 @@ def marcovise(tree, h, v, ancestors=[]):
     left = tree[0]
     right = tree[1:]
     
-    new_ancestors = ancestors.copy()
-    new_ancestors.append(left.split("|")[0])
-    if v and len(new_ancestors) > v:
-        new_ancestors = new_ancestors[-v:]
-    
     if len(right) == 1:
         if isinstance(right[0], str):
             return tree
-        return (add_parents(left, ancestors), marcovise(right[0], h, v, new_ancestors))
+        return (add_parents(left, ancestors, lvl, v), marcovise(right[0], h, v, ancestors, lvl+1))
     
     if len(right) == 2:
-        return (add_parents(left, ancestors), marcovise(right[0], h, v, new_ancestors), marcovise(right[1], h, v, new_ancestors))
+        return (add_parents(left, ancestors, lvl, v), marcovise(right[0], h, v, ancestors, lvl+1), marcovise(right[1], h, v, ancestors, lvl+1))
     
     neighbors = [elem[0] for elem in right[1:]]
-    if h:
-        neighbors = neighbors[:h]
-    new_node = tree[0].split("|")[0] + "|<{}>".format(",".join(neighbors))
+    neighbors = neighbors[:h]
+    new_node = left.split("|")[0] + "|<{}>".format(",".join(neighbors))
     
-    return (add_parents(left, ancestors), marcovise(right[0], h, v, new_ancestors), marcovise([new_node] + list(right[1:]), h, v, new_ancestors))
+    return (add_parents(left, ancestors, lvl, v), marcovise(right[0], h, v, ancestors, lvl+1), marcovise([new_node] + list(right[1:]), h, v, ancestors, lvl))
 
 
 def run_marcovise(trees, horizontal, vertical):
@@ -59,8 +88,9 @@ def run_marcovise(trees, horizontal, vertical):
     """
     for tree_str in trees:
         tree = tree_from_str(tree_str)
-        print(nested_tuple_to_str(marcovise(tree, horizontal, vertical)))
+        backtraces = build_backtraces(tree)
+        print(nested_tuple_to_str(marcovise(tree, horizontal, vertical, backtraces)))
 
 
 if __name__ == "__main__":
-    run_marcovise(["(ROOT (S (NP-SBJ (PRP It)) (VP (VBZ has) (NP (NP (DT no) (NN bearing)) (PP-DIR (IN on) (NP (NP (PRP$ our) (NN work) (NN force)) (NP-TMP (NN today)))))) (. .)))"], 10, 3)
+    run_marcovise(["(ROOT (S (NP-SBJ (PRP It)) (VP (VBZ has) (NP (NP (DT no) (NN bearing)) (PP-DIR (IN on) (NP (NP (PRP$ our) (NN work) (NN force)) (NP-TMP (NN today)))))) (. .)))"], 999, 3)

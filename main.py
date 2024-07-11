@@ -26,10 +26,6 @@ def main(command, input, grammar=None, rules=None, lexicon=None, paradigma=None,
             return(run_cyk_parse(rules=rules, lexicon=lexicon, sentences=sentences, initial=initial_nonterminal, unking=unking, threshold_beam=threshold_beam, rank_beam=rank_beam, smoothing=smoothing))
     
     elif command == "binarise":
-        if horizontal:
-            horizontal = int(horizontal)
-        if vertical:
-            vertical = int(vertical)
         return run_marcovise(input, horizontal, vertical)
     
     elif command == "debinarise":
@@ -80,8 +76,8 @@ def parse_arguments():
                               help='Apply A*-search (4b). Load Outside weights from file PATH.')
 
     binarise_parser = subparsers.add_parser("binarise", add_help=False)
-    binarise_parser.add_argument('-h', '--horizontal', default=None, required=False)
-    binarise_parser.add_argument('-v', '--vertical', default=None, required=False)
+    binarise_parser.add_argument('-h', '--horizontal', default=999, type=int, required=False)
+    binarise_parser.add_argument('-v', '--vertical', default=1, type=int, required=False)
     
     debinarise_parser = subparsers.add_parser("debinarise")
     
